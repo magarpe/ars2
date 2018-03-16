@@ -1,0 +1,76 @@
+import turtle, random
+
+tsize = 21
+shapelinesize = 2
+turtleSpeed = 8
+
+robotColor = "silver"
+robotSize = 25
+turtlePos = (random.randint(-20,20),random.randint(-20,20))
+
+noise = 0.4
+beacons = [[-150,100],[140,200],[-40,-160]]
+
+def createRobot():
+    global tsize, shapelinesize, robotColor, robotSize, turtleSpeed, turtlePos
+    cir = ((10, 0), (9.51, 3.09), (8.09, 5.88),(5.88, 8.09),
+               (3.09, 9.51), (0, 10), (-3.09, 9.51), (-5.88, 8.09),
+               (-8.09, 5.88),(-9.51, 3.09), (-10, 0), (-9.51, -3.09),
+               (-8.09, -5.88), (-5.88, -8.09), (-3.09, -9.51), (-0.0, -10.0),
+               (3.09, -9.51), (5.88, -8.09), (8.09, -5.88), (9.51, -3.09))
+    line = ((0,0),(0,10))
+    s = turtle.Shape("compound")
+    s.addcomponent(cir, robotColor, "black")
+    s.addcomponent(line, "black", "black")
+    turtle.Screen().register_shape(robotColor, s)
+    robotTurtle = turtle.Turtle(visible = False)
+    robotTurtle.shapesize(outline=shapelinesize)
+    robotTurtle.shape(robotColor)
+    robotTurtle.speed(turtleSpeed)
+    robotTurtle.turtlesize(robotSize/tsize)
+    robotTurtle.penup()
+    robotTurtle.goto(turtlePos)
+    robotTurtle.showturtle()
+    return robotTurtle
+
+
+def drawBeacons(drawTurtle):
+    for b in beacons:
+        drawTurtle.penup()
+        drawTurtle.goto(b)
+        drawTurtle.dot(15,"red")
+
+def triangulate(robot,tribeacons):
+    dists = []
+    for tb in tribeacons:
+        dists.append(robot.distance(tb[0],tb[1]))
+        print(dists[len(dists)-1]) #check distancess for testing
+        
+    #using triangulation, find coordinates of robot
+    #output is (x,y) <- should be same as actual position
+    
+##  return centerPoint
+
+##def createCloudFromPoint(point):
+##      global noise
+        #steps:
+        #create new positions based on the input point
+        #store the positions in list:
+##        cloud = [[x1,y1],[x2,y2],[x3,y3]...]
+##        for p in range(0,len(cloud),2):
+##            drawTurtle.goto(cloud[p][0],cloud[p][1])
+##            drawTurtle.dot(15,"green")
+##      return cloud        
+
+##def findShadowPos(cloud):
+    #find the mean of the cloud
+    #return mean as new shadow position
+##  return shadowPos
+
+drawTurtle = turtle.Turtle(visible=False)
+drawTurtle.speed(0)
+drawBeacons(drawTurtle)
+robot = createRobot()
+##centerPoint = triangulate(robot, beacons)
+##cloud = createCloudFromPoint(centerPoint)
+##shadowPos = findShadowPos(cloud)
