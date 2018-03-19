@@ -8,7 +8,9 @@ robotColor = "silver"
 robotSize = 25
 turtlePos = (random.randint(-20,20),random.randint(-20,20))
 
-noise = 0.4
+noise = 0.0001
+m = 100
+t = 100
 
 def createRobot():
     global tsize, shapelinesize, robotColor, robotSize, turtleSpeed, turtlePos
@@ -166,7 +168,6 @@ def triangulation(landmark_list, angle_list, eps):
         print ("Significant measurement error (concentric).")
         return
 
-
     # get lengths of three segments of triangle (cb pt1 pt2) and find angle cb from the cosine rule
     tri_a = seglen(cb, ca)
     tri_b = seglen(cb, pt2)
@@ -194,6 +195,38 @@ landmark_list = [(150, 0), (150,150), (0, 150)]
 # Note: These angles and landmarks were chosen to put the robot at the origin,
 # with a heading of 30 degrees north of east.
 
+
+#############################################################################################################################    
+
+def getGaussianN(mean = 0):
+    global m, noise
+    num = sum([random.random() for i in range(m)], -(m * (1/2)))
+    return num/(math.sqrt(noise)*math.sqrt(m)) + mean
+
+def createGaussianCloud(muX, muY):
+    global t
+    xs = [getGaussianN() for g in range(t)]
+    ys = [getGaussianN() for n in range(t)]
+    return xs, ys
+
+def drawCloud(drawTurtle, cloudX, cloudY):
+    for p in range(len(cloudX)):
+        drawTurtle.goto(cloudX[p],cloudY[p])
+        drawTurtle.dot(5,"green")
+
+def findShadowPos(cloudX, cloudY):
+    x = sum(cloudX)/len(cloudX)
+    y = sum(cloudY)/len(cloudY)
+    return (x,y)
+
+#############################################################################################################################
+
+drawTurtle = turtle.Turtle(visible=False)
+drawTurtle.speed(0)
+drawBeacons(drawTurtle)
+robot = createRobot()
+
+
 result = triangulation(landmark_list, angle_list, 0.0001)
 if result is not None:
     (robot_coord, heading, unit_velocity) = result
@@ -201,28 +234,8 @@ if result is not None:
     print ("Angles to landmarks:", angle_list)
     print ("Triangulated robot coordinates:", robot_coord)
     print ("Heading:", heading, "Unit velocity:", unit_velocity)
- #############################################################################################################################
 
-##def createCloudFromPoint(point):
-##      global noise
-        #steps:
-        #create new positions based on the input point
-        #store the positions in list:
-##        cloud = [[x1,y1],[x2,y2],[x3,y3]...]
-##        for p in range(0,len(cloud),2):
-##            drawTurtle.goto(cloud[p][0],cloud[p][1])
-##            drawTurtle.dot(15,"green")
-##      return cloud        
-
-##def findShadowPos(cloud):
-    #find the mean of the cloud
-    #return mean as new shadow position
-##  return shadowPos
-
-drawTurtle = turtle.Turtle(visible=False)
-drawTurtle.speed(0)
-drawBeacons(drawTurtle)
-robot = createRobot()
-##centerPoint = triangulate(robot, beacons)
-##cloud = createCloudFromPoint(centerPoint)
-##shadowPos = findShadowPos(cloud)
+xx, yy = createGaussianCloud(result[0], result[1])
+drawCloud(drawTurtle, xx, yy)
+drawTurtle.goto(findShadowPos(xx, yy))
+drawTurtle.dot(10,"black")
