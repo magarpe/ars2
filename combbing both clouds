@@ -1,0 +1,20 @@
+  #function calculate the total mean via two different means
+def Overlap_mean(mean1,mean2,num1,num2):
+     #mean1 is the mean for Robot Cloud
+        #mean2 is the mean for Envouirment Cloud
+        #num1 andnum2 is number of tries in cloud 1 and 2
+        totalnum = num1+num2
+        new_mean = (num1*mean1+num2*mean2)/totalnum
+        
+        return new_mean
+
+
+##def overlap_mean(mean1,mean2,varianc1,varianc2)
+##
+###K1=(varianc1**2)+(varianc2**2)
+##K2=varianc1**2/K1
+##new_mean=[mean1+(K2*(mean2-mean1))]
+##new_varianc**2=[varianc1**2 -(K2*(varianc1**2))]
+##
+##return new_mean
+
