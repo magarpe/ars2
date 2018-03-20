@@ -1,4 +1,5 @@
 import turtle, random, math
+import numpy as np
 
 tsize = 21
 shapelinesize = 2
@@ -7,13 +8,28 @@ turtleSpeed = 8
 robotColor = "silver"
 robotSize = 25
 turtlePos = (random.randint(-20,20),random.randint(-20,20))
+turtleHead = 0
 
-noise = 0.0001
+gaussianNoise = 0.0001
+angleNoise = 0.4
 m = 100
 t = 100
 
+#angle_list = [45, 135, 225]
+angle_list = []
+# This is a list of the measured angles to the three landmarks.
+# Angles increase counterclockwise from above, just like standard math.  Forward = 0.
+
+landmark_list = [(150,150), (-150,150), (-150,-150)]
+# This is a list of the three landmarks, in the same order as the angles.  Each
+# landmark has an x and a y coordinate.
+# Note: These angles and landmarks were chosen to put the robot at the origin,
+# with a heading of 30 degrees north of east.
+
+
+ #############################################################################################################################
 def createRobot():
-    global tsize, shapelinesize, robotColor, robotSize, turtleSpeed, turtlePos
+    global tsize, shapelinesize, robotColor, robotSize, turtleSpeed, turtlePos, turtleHead
     cir = ((10, 0), (9.51, 3.09), (8.09, 5.88),(5.88, 8.09),
                (3.09, 9.51), (0, 10), (-3.09, 9.51), (-5.88, 8.09),
                (-8.09, 5.88),(-9.51, 3.09), (-10, 0), (-9.51, -3.09),
@@ -31,8 +47,17 @@ def createRobot():
     robotTurtle.turtlesize(robotSize/tsize)
     robotTurtle.penup()
     robotTurtle.goto(turtlePos)
+    if turtleHead is not None:
+        robotTurtle.setheading(turtleHead)
     robotTurtle.showturtle()
     return robotTurtle
+
+def moveRobot(robot, turn, dist):
+    global turtlePos, turtleHead
+    robot.left(turn)
+    robot.forward(dist)
+    turtlePos = (robot.xcor(),robot.ycor())
+    turtleHead = robot.heading()
 
 def drawBeacons(drawTurtle):
     for b in landmark_list:
@@ -41,6 +66,18 @@ def drawBeacons(drawTurtle):
         drawTurtle.dot(15,"red")
 
  #############################################################################################################################
+
+def getAngles(beacons):
+    global angleNoise, turtlePos   
+    angles = []
+    for b in range(len(beacons)):
+        angle = math.degrees(math.atan2(beacons[b][1]-turtlePos[1], beacons[b][0]-turtlePos[0]))
+        if angle < 0:
+            angle += 360
+        if angleNoise is not None:
+            angle += np.random.normal(0,angleNoise,1)
+        angles.append(angle)
+    return angles
 
 def vlen(vector):
     return math.sqrt(vector[0] * vector[0] + vector[1] * vector[1])
@@ -119,7 +156,9 @@ def properly_order_landmarks(landmark_list, angle_list):
         new_landmark_list[order_index] = landmark_list[landmark_order[order_index]]
     return (new_angle_list, new_landmark_list)
 
-def triangulation(landmark_list, angle_list, eps):
+def triangulation(landmark_list, eps):
+    global angle_list
+    angle_list = getAngles(landmark_list)
     (angles, landmarks) = properly_order_landmarks(landmark_list, angle_list)
     alpha = (angles[1] - angles[0]) % 360.0
     alpha = alpha * math.pi / 180
@@ -174,8 +213,7 @@ def triangulation(landmark_list, angle_list, eps):
     tri_c = seglen(pt2, ca)
     gamma = cosine_rule_get_angle(tri_a, tri_b, tri_c)  # math.asin(vlen(v12)/(2*ra))
     d2r = 2 * rb * math.sin(gamma)
-
-d2r_vec = vscale(d2r, unit_normal(cba, psub(ca, pt2)))
+    d2r_vec = vscale(d2r, unit_normal(cba, psub(ca, pt2)))
     # d2r*(the unit normal to cba generally facing from pt2 to ca)
     robot_coord = vadd(pt2, d2r_vec)
     vec_robot_to_pt1 = psub(pt1, robot_coord)
@@ -184,30 +222,17 @@ d2r_vec = vscale(d2r, unit_normal(cba, psub(ca, pt2)))
     return (robot_coord, ((180 / math.pi) * heading % 360), unit_velocity)
 
 
-# Begin program --------------------------------------------------------------------------
-
-angle_list = [45, 135, 225]
-# This is a list of the measured angles to the three landmarks.
-# Angles increase counterclockwise from above, just like standard math.  Forward = 0.
-
-landmark_list = [(150, 0), (150,150), (0, 150)]
-# This is a list of the three landmarks, in the same order as the angles.  Each
-# landmark has an x and a y coordinate.
-# Note: These angles and landmarks were chosen to put the robot at the origin,
-# with a heading of 30 degrees north of east.
-
-
 #############################################################################################################################    
 
 def getGaussianN(mean = 0):
-    global m, noise
+    global m, gaussianNoise
     num = sum([random.random() for i in range(m)], -(m * (1/2)))
-    return num/(math.sqrt(noise)*math.sqrt(m)) + mean
+    return (num/(math.sqrt(gaussianNoise)*math.sqrt(m))) + mean
 
 def createGaussianCloud(muX, muY):
     global t
-    xs = [getGaussianN() for g in range(t)]
-    ys = [getGaussianN() for n in range(t)]
+    xs = [getGaussianN(muX) for g in range(t)]
+    ys = [getGaussianN(muY) for n in range(t)]
     return xs, ys
 
 def drawCloud(drawTurtle, cloudX, cloudY):
@@ -219,6 +244,7 @@ def findShadowPos(cloudX, cloudY):
     x = sum(cloudX)/len(cloudX)
     y = sum(cloudY)/len(cloudY)
     return (x,y)
+
 ############################################    OVERLAP      ############################################################
 
   #function calculate the total mean via two different means
@@ -240,16 +266,17 @@ def Overlap_mean(mean1,mean2,num1,num2):
 ##new_varianc**2=[varianc1**2 -(K2*(varianc1**2))]
 ##
 ##return new_mean
-############################################    OVERLAP      ############################################################
-
+############################################ OVERLAP ############################################################
 
 drawTurtle = turtle.Turtle(visible=False)
 drawTurtle.speed(0)
 drawBeacons(drawTurtle)
 robot = createRobot()
 
+moveRobot(robot, random.uniform(-100,100),100)
+print("Position:",robot.pos(),"Heading:",robot.heading())
 
-result = triangulation(landmark_list, angle_list, 0.0001)
+result = triangulation(landmark_list, 0.0001)
 if result is not None:
     (robot_coord, heading, unit_velocity) = result
     print ("Landmark coordinates:", landmark_list)
@@ -257,7 +284,9 @@ if result is not None:
     print ("Triangulated robot coordinates:", robot_coord)
     print ("Heading:", heading, "Unit velocity:", unit_velocity)
 
-xx, yy = createGaussianCloud(result[0], result[1])
+
+xx, yy = createGaussianCloud(robot_coord[1], robot_coord[1])
 drawCloud(drawTurtle, xx, yy)
 drawTurtle.goto(findShadowPos(xx, yy))
 drawTurtle.dot(10,"black")
+print("ShadowPos:",drawTurtle.pos())
