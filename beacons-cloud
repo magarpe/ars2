@@ -174,7 +174,8 @@ def triangulation(landmark_list, angle_list, eps):
     tri_c = seglen(pt2, ca)
     gamma = cosine_rule_get_angle(tri_a, tri_b, tri_c)  # math.asin(vlen(v12)/(2*ra))
     d2r = 2 * rb * math.sin(gamma)
-    d2r_vec = vscale(d2r, unit_normal(cba, psub(ca, pt2)))
+
+d2r_vec = vscale(d2r, unit_normal(cba, psub(ca, pt2)))
     # d2r*(the unit normal to cba generally facing from pt2 to ca)
     robot_coord = vadd(pt2, d2r_vec)
     vec_robot_to_pt1 = psub(pt1, robot_coord)
@@ -218,8 +219,29 @@ def findShadowPos(cloudX, cloudY):
     x = sum(cloudX)/len(cloudX)
     y = sum(cloudY)/len(cloudY)
     return (x,y)
+############################################    OVERLAP      ############################################################
 
-#############################################################################################################################
+  #function calculate the total mean via two different means
+def Overlap_mean(mean1,mean2,num1,num2):
+     #mean1 is the mean for Robot Cloud
+        #mean2 is the mean for Envouirment Cloud
+        #num1 andnum2 is number of tries in cloud 1 and 2
+        totalnum = num1+num2
+        new_mean = (num1*mean1+num2*mean2)/totalnum
+        
+        return new_mean
+
+
+##def overlap_mean(mean1,mean2,varianc1,varianc2)
+##
+###K1=(varianc1**2)+(varianc2**2)
+##K2=varianc1**2/K1
+##new_mean=[mean1+(K2*(mean2-mean1))]
+##new_varianc**2=[varianc1**2 -(K2*(varianc1**2))]
+##
+##return new_mean
+############################################    OVERLAP      ############################################################
+
 
 drawTurtle = turtle.Turtle(visible=False)
 drawTurtle.speed(0)
