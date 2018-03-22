@@ -1,0 +1,140 @@
+import numpy as np
+from numpy.linalg import inv
+import matplotlib.pyplot as plt
+from scipy import signal
+import math
+import random
+
+
+
+R=np.diag((0.4,0.4,0.4))
+A = np.diag((1, 1, 1))
+C=np.diag((1,1,1))
+I=np.diag((1,1,1))
+delta_t = 0.1  # 1sec
+mean=0
+deviationx=0.1
+deviationy=0.3
+noiserange=10
+
+alpha1=0.05
+alpha2=0.001
+alpha3=5.0
+alpha4=0.5
+color=np.array(['ro','yo','mo'])
+
+
+def noisecloud(x,y,j):
+    noisex = np.random.normal(mean, deviationx, noiserange)
+    noisey = np.random.normal(mean, deviationy, noiserange)
+    for i in range(noiserange):
+        plt.plot(x + noisex[i], y + noisey[i], 'bo')
+    plt.plot(x, y, color[j])
+
+# simple is the equation what teacher use in slide
+def simple(b):
+    sum=0.0;
+    for i in range(12):
+        sum+=random.uniform(-b,b)
+    sum = sum/float(i)
+    return sum
+
+
+def odometry(U_pos,X_pos,j):
+
+    sigma_rot1=U_pos[0,0]
+    sigma_rot2=U_pos[1,0]
+    sigma_trans=U_pos[2,0]
+
+    x=X_pos[0,0]
+    y=X_pos[1,0]
+    theta=X_pos[2,0]
+
+    sigma_rot1=sigma_rot1+simple((alpha1*abs(sigma_rot1))+(alpha2*sigma_trans))
+    sigma_trans=sigma_trans+simple(alpha2*sigma_trans+alpha4*(abs(sigma_rot1)+abs(sigma_rot2)))
+    sigma_rot2=sigma_rot2+simple((alpha1*abs(sigma_rot2))+alpha2*sigma_trans)
+
+    x=x+(sigma_trans*math.cos(math.radians(theta+sigma_rot1)))
+    y=y+(sigma_trans*math.sin(math.radians(theta+sigma_rot1)))
+    theta=theta+sigma_rot1+sigma_rot2
+
+    noisecloud(x,y,j)
+
+    U_pos[0,0]=sigma_rot1
+    U_pos[1,0]=sigma_rot2
+    U_pos[2,0]=sigma_trans
+    X_pos[0,0]= x
+    X_pos[1,0]= y
+    X_pos[2,0]= theta
+    return U_pos,X_pos
+
+def kalman_filter_prediction(x_pos,A,P,U,B):
+    x_pos=np.dot(A,x_pos)+np.dot(B,U)
+    P=np.dot(A,np.dot(P,np.transpose(A)))+R
+    return x_pos,P
+
+
+def kalmal_filter_correction(x_pos,P,z,C,Q):
+    # predictive Mean of y = pre_y
+    # KG=kalman gain
+    # new correction of x_pos
+    # new correction of process coveritance
+
+
+    pre_y=inv(np.dot(C,np.dot(P,np.transpose(C)))+Q)
+    KG=np.dot(np.dot(P,C),pre_y)
+    x_pos=x_pos+np.dot(KG,z-np.dot(C,x_pos))
+    P=np.dot((I-KG*C),P)
+    return x_pos,P
+
+
+def main():
+    # initial position of x when t=0
+    x_pos = np.array([[0.0],[0.0],[0.0]])
+
+    # process coveritance all digonals are 0.01
+    P = np.diag((0.01, 0.01, 0.01))
+
+    # translation is intial velocity and rotation is the initial angular velocity
+    translation = 0.5
+    rotation = 0.5
+    theta = 0
+
+    B = np.array([[(delta_t * math.cos(math.radians(theta))), 0], [(delta_t * math.sin(math.radians(theta))), 0],
+                  [0, delta_t]])
+    Q=np.diag((0.1,0.1,0.1))
+
+    # i use z as a random error here
+    z = [random.uniform(0, 9) for g in range(10)]
+    # the theta1=30,theta2=30;the trans=25
+    # u could change if necessary
+    u_pos = np.array([[60], [60], [50]])
+
+    plt.plot(x_pos[0, 0], x_pos[1, 0], 'go')
+    plt.axis([-15,15,-15,15])
+    for j in range(3):
+        U = np.array([[translation], [rotation]])
+        for i in range(10):
+            x_pos, P = kalman_filter_prediction(x_pos, A, P, U, B)
+            Q=np.dot(1,Q)
+            x_pos,P=kalmal_filter_correction(x_pos,P,z[i],C,Q)
+            noisecloud(x_pos[0,0],x_pos[1,0],j)
+
+        # when robot has collusion with walls the call the odometry and calculate the new position
+        # i count here 10 times applying KF.I change the direction by Odometry. again applying KF
+        #so i for applying KF and j for change direction
+        
+        x1=x_pos[0,0]
+        y1=x_pos[1,0]
+        theta1=x_pos[2,0]
+        u_pos,x_pos=odometry(u_pos, x_pos,j)
+        x2 = x_pos[0, 0]
+        y2 = x_pos[1, 0]
+        theta2 = x_pos[2, 0]
+        translation=math.sqrt(((x1-x2)*(x1-x2))+((y1-y2)*(y1-y2)))
+        rotation=theta1-theta2
+
+    plt.show()
+
+
+main()
