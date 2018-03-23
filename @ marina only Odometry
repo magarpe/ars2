@@ -3,72 +3,63 @@ import matplotlib.pyplot as plt
 import math
 import random
 
-alpha1=0.05
-alpha2=0.001
-alpha3=5,0
-alpha4=0.5
-
-# i set mean and deviation x and y for noise
-mean=0
-deviationx=1.0
-deviationy=4.0
-#total number of noise
-noiserange=100
-
+alpha1 = 0.5
+alpha2 = 0.5
+alpha3 = 0.5
+alpha4 = 0
 
 # simple is the equation what teacher use in slide
 def simple(b):
-    sum=0.0;
+    sum = 0.0
     for i in range(12):
-        sum+=random.uniform(-b,b)
-    sum = sum/float(i)
+        sum += random.uniform(-b, b)
+    sum = sum / float(i)
     return sum
 
 
-def odometry(U_pos,X_pos):
+def odometry(u_pos, x_pos):
+    # x_ret = x_pos
+    sigma_rot1 = u_pos[0, 0]
+    sigma_rot2 = u_pos[1, 0]
+    sigma_trans = u_pos[2, 0]
 
-    sigma_rot1=U_pos[0,0]
-    sigma_rot2=U_pos[1,0]
-    sigma_trans=U_pos[2,0]
+    # print(x_pos)
 
-    x=X_pos[0,0]
-    y=X_pos[1,0]
-    theta=X_pos[2,0]
+    x = x_pos[0, 0]
+    y = x_pos[1, 0]
+    theta = x_pos[2, 0]
 
-    sigma_rot1=sigma_rot1+simple((alpha1*abs(sigma_rot1))+(alpha2*sigma_trans))
-    sigma_trans=sigma_trans+simple(alpha2*sigma_trans+alpha4*(abs(sigma_rot1)+abs(sigma_rot2)))
-    sigma_rot2=sigma_rot2+simple((alpha1*abs(sigma_rot2))+alpha2*sigma_trans)
+    sigma_rot1 = sigma_rot1 + simple((alpha1 * abs(sigma_rot1)) + (alpha2 * sigma_trans))
+    sigma_trans = sigma_trans + simple(alpha2 * sigma_trans + alpha4 * (abs(sigma_rot1) + abs(sigma_rot2)))
+    sigma_rot2 = sigma_rot2 + simple((alpha1 * abs(sigma_rot2)) + alpha2 * sigma_trans)
 
-    x=x+(sigma_trans*math.cos(math.radians(theta+sigma_rot1)))
-    y=y+(sigma_trans*math.sin(math.radians(theta+sigma_rot1)))
-    theta=theta+sigma_rot1+sigma_rot2
+    x = x + (sigma_trans * math.cos(math.radians(theta + sigma_rot1)))
+    y = y + (sigma_trans * math.sin(math.radians(theta + sigma_rot1)))
+    theta = theta + sigma_rot1 + sigma_rot2
+    
+    plt.plot(x, y, 'r+')
 
-    noisex = np.random.normal(mean,deviationx, noiserange)
-    noisey = np.random.normal(mean,deviationy, noiserange)
-    for i in range(noiserange):
-        plt.plot(x+noisex[i],y+noisey[i], 'bo')
-    plt.axis([-50,50,-50,50])
-    plt.plot(x, y, 'ro')
+    return np.array([x, y, theta])
 
-    U_pos[0,0]=sigma_rot1
-    U_pos[1,0]=sigma_rot2
-    U_pos[2,0]=sigma_trans
-    X_pos[0,0]= x
-    X_pos[1,0]= y
-    X_pos[2,0]= theta
-    return X_pos,U_pos
 
 def main():
-   # Initial Position(0,0,0)
-    x_pos = np.array([[0.0],[0.0],[0.0]])
-   #the theta1=30,theta2=30;the trans=25
-   #u could change if necessary
+    # Initial Position(0,0,0)
+    pos = np.array([[0.0], [0.0], [0.0]])
+    # the theta1=30,theta2=30;the trans=25
+    # u could change if necessary
 
-    u_pos = np.array([[30], [30], [20]])
+    u = np.array([[90], [0], [30]])
 
-    plt.plot(x_pos[0,0],x_pos[1,0], 'mo')
+    plt.plot(pos[0, 0], pos[1, 0], 'mo')
 
-    odometry(u_pos,x_pos)
+    for i in range(0, 50):
+        # print(pos)
+        odometry(u, pos)
+        # plt.plot(new_pos[0, 0], new_pos[1, 0], 'mo')
+
+    plt.axis([-50, 50, -50, 50])
 
     plt.show()
+
+
 main()
