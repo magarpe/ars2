@@ -1,0 +1,295 @@
+import turtle, random, math, time
+import numpy as np
+
+robot = None
+tsize = 21
+shapelinesize = 2
+
+
+roomSize = (400,400)
+turtleSpeed = 10
+
+velocity = 100
+robotColor = "silver"
+robotSize = 25
+robotPos = np.array([
+    #random.randint((-roomSize[0]/2)+robotSize,(roomSize[0]/2))-robotSize,
+    #random.randint((-roomSize[1]/2)+robotSize,(roomSize[1]/2))-robotSize,
+    -100,
+    0,
+    180])
+
+
+visuals = True
+showCloud = True
+
+
+ ################################## Visuals ##################################################################################
+def createRobot():
+    global tsize, shapelinesize, robotColor, robotSize, turtleSpeed, robotPos, robot
+    posX, posY, head = robotPos
+    cir = ((10, 0), (9.51, 3.09), (8.09, 5.88),(5.88, 8.09),
+               (3.09, 9.51), (0, 10), (-3.09, 9.51), (-5.88, 8.09),
+               (-8.09, 5.88),(-9.51, 3.09), (-10, 0), (-9.51, -3.09),
+               (-8.09, -5.88), (-5.88, -8.09), (-3.09, -9.51), (-0.0, -10.0),
+               (3.09, -9.51), (5.88, -8.09), (8.09, -5.88), (9.51, -3.09))
+    line = ((0,0),(0,10))
+    s = turtle.Shape("compound")
+    s.addcomponent(cir, robotColor, "black")
+    s.addcomponent(line, "black", "black")
+    turtle.Screen().register_shape(robotColor, s)
+    robot = turtle.Turtle(visible = False)
+    robot.shapesize(outline=shapelinesize)
+    robot.shape(robotColor)
+    robot.speed(turtleSpeed)
+    robot.turtlesize(robotSize/tsize)
+    robot.penup()
+    robot.goto(posX, posY)
+    robot.setheading(head)
+    robot.showturtle()
+
+def createRoom():
+    global beacons, walls, roomSize
+    rx, ry = roomSize
+    rx /= 2
+    ry /= 2
+    q = len(beacons)
+    roomCorners = [[-rx,ry],[rx,ry],[rx,-ry],[-rx,-ry]]
+    beacons = beacons + roomCorners
+    roomWalls = [[beacons[q], beacons[q+1]], [beacons[q+1], beacons[q+2]],
+    [beacons[q+2], beacons[q+3]], [beacons[q+3], beacons[q]]]
+    walls = walls + roomWalls
+
+def drawBeacons(drawTurtle):
+    global beacons
+    for b in beacons:
+        drawTurtle.goto(b)
+        drawTurtle.dot(15,"red")
+        
+def drawWalls(drawTurtle):
+    global beacons, walls, roomSize
+    for w in walls:
+        b1, b2 = w
+        drawTurtle.penup()
+        drawTurtle.goto(b1)
+        drawTurtle.pendown()
+        drawTurtle.goto(b2)
+    drawTurtle.penup()
+
+ ################################## Movement ##################################################################################
+
+def moveRobot(target):
+    global robot, visuals, robotPos, roomTurtle
+    if robot is not None and visuals:
+        robot.setheading(
+            math.degrees(math.atan2(
+                target[1]-robotPos[1],
+                target[0]-robotPos[0])))
+        robot.goto(target)
+    robotPos[0] = target[0]
+    robotPos[1] = target[1]
+    roomTurtle.goto(robotPos[0:2])
+    roomTurtle.dot(10,"blue")
+    #print("New pos:",target)
+
+
+def intersectLines( pt1, pt2, ptA, ptB ): 
+    """ this returns the intersection of Line(pt1,pt2) and Line(ptA,ptB)
+        
+        returns a tuple: (xi, yi, valid, r, s), where
+        (xi, yi) is the intersection
+        r is the scalar multiple such that (xi,yi) = pt1 + r*(pt2-pt1)
+        s is the scalar multiple such that (xi,yi) = pt1 + s*(ptB-ptA)
+            valid == 0 if there are 0 or inf. intersections (invalid)
+            valid == 1 if it has a unique intersection ON the segment    """
+    DET_TOLERANCE = 0.00000001
+    # the first line is pt1 + r*(pt2-pt1)
+    # in component form:
+    x1, y1 = pt1;   x2, y2 = pt2
+    dx1 = x2 - x1;  dy1 = y2 - y1
+    # the second line is ptA + s*(ptB-ptA)
+    x, y = ptA;   xB, yB = ptB;
+    dx = xB - x;  dy = yB - y;
+    # we need to find the (typically unique) values of r and s
+    # that will satisfy
+    #
+    # (x1, y1) + r(dx1, dy1) = (x, y) + s(dx, dy)
+    #
+    # which is the same as
+    #
+    #    [ dx1  -dx ][ r ] = [ x-x1 ]
+    #    [ dy1  -dy ][ s ] = [ y-y1 ]
+    #
+    # whose solution is
+    #
+    #    [ r ] = _1_  [  -dy   dx ] [ x-x1 ]
+    #    [ s ] = DET  [ -dy1  dx1 ] [ y-y1 ]
+    #
+    # where DET = (-dx1 * dy + dy1 * dx)
+    #
+    # if DET is too small, they're parallel
+    #
+    DET = (-dx1 * dy + dy1 * dx)
+    if math.fabs(DET) < DET_TOLERANCE: return (0,0,0,0,0)
+    # now, the determinant should be OK
+    DETinv = 1.0/DET
+    # find the scalar amount along the "self" segment
+    r = DETinv * (-dy  * (x-x1) +  dx * (y-y1))
+    # find the scalar amount along the input line
+    s = DETinv * (-dy1 * (x-x1) + dx1 * (y-y1))
+    # return the average of the two descriptions
+    xi = (x1 + r*dx1 + x + s*dx)/2.0
+    yi = (y1 + r*dy1 + y + s*dy)/2.0
+    return ( xi, yi, 1)
+
+def IsOnSegment( xi,  yi,  xj,  yj, xk,  yk):
+    return (xi <= xk or xj <= xk) and (xk <= xi or xk <= xj) and\
+         (yi <= yk or yj <= yk) and (yk <= yi or yk <= yj)
+def ComputeDirection( xi,  yi,  xj,  yj, xk,  yk):
+    a = (xk - xi) * (yj - yi)
+    b = (xj - xi) * (yk - yi)
+    if a < b:
+        return -1
+    elif a > b:
+        return 1
+    else:
+        return 0
+#/** Do line segments (x1, y1)--(x2, y2) and (x3, y3)--(x4, y4) intersect? */
+def DoLineSegmentsIntersect(line1, line2):
+    a, b = line1
+    c, d = line2
+    x1,  y1 = a
+    x2,  y2 = b
+    x3,  y3 = c
+    x4,  y4 = d
+    d1 = ComputeDirection(x3, y3, x4, y4, x1, y1)
+    d2 = ComputeDirection(x3, y3, x4, y4, x2, y2)
+    d3 = ComputeDirection(x1, y1, x2, y2, x3, y3)
+    d4 = ComputeDirection(x1, y1, x2, y2, x4, y4)
+    return (((d1 > 0 and d2 < 0) or (d1 < 0 and d2 > 0)) and\
+              ((d3 > 0 and d4 < 0) or (d3 < 0 and d4 > 0))) or\
+             (d1 == 0 and IsOnSegment(x3, y3, x4, y4, x1, y1)) or\
+             (d2 == 0 and IsOnSegment(x3, y3, x4, y4, x2, y2)) or\
+             (d3 == 0 and IsOnSegment(x1, y1, x2, y2, x3, y3)) or\
+             (d4 == 0 and IsOnSegment(x1, y1, x2, y2, x4, y4))
+
+def setNextPosition(target):
+    global robotPos, walls, robotSize, velocity, movement, roomTurtle
+    crashPoint = None
+    crashWall = None
+    # check if any of the walls are in the robot's path
+    for w in walls:
+        c = DoLineSegmentsIntersect((robotPos[0:2], target), w) # check for passing a wall line
+        if c:
+            # now check if the actual wall is hit, or if the robot comes too close
+            # for the last, create parallel lines to check
+            parallelP = (np.array(w[0])+robotSize, np.array(w[1])+robotSize)
+            parallelN = (np.array(w[0])-robotSize, np.array(w[1])-robotSize)
+            if DoLineSegmentsIntersect((robotPos[0:2],target),parallelP) or\
+               DoLineSegmentsIntersect((robotPos[0:2],target),parallelN):
+                if crashWall is None:
+                    crashWall = w
+                # see if this wall is closer to the robot than the last found
+                else:
+                    p1, p2 = crashWall
+                    p3 = robotPos[0:2]
+                    oldWallDistance = norm(np.cross(p2-p1, p1-p3))/norm(p2-p1)
+                    p1, p2 = w
+                    newWallDistance = norm(np.cross(p2-p1, p1-p3))/norm(p2-p1)
+                    if oldWallDistance > newWallDistance:
+                        crashWall = w
+    # if a crash point has been found, determine next robot position
+    if crashWall is not None:
+        print("Found a wall to crash into")
+        parallelP = (np.array(crashWall[0])+robotSize, np.array(crashWall[1])+robotSize)
+        parallelN = (np.array(crashWall[0])-robotSize, np.array(crashWall[1])-robotSize)
+        pointP = intersectLines(robotPos[0:2], target, parallelP[0], parallelP[1])
+        pointN = intersectLines(robotPos[0:2], target, parallelN[0], parallelN[1])
+        #if an intersection has been found, determine distance
+        if pointP[2] == 1:
+            distP = np.linalg.norm(np.array(pointP[0:2])-np.array(robotPos[0:2]))
+        else: distP = 100000000
+        if pointN[2] == 1:
+            distN = np.linalg.norm(np.array(pointN[0:2])-np.array(robotPos[0:2]))
+        else: distN = 100000000
+        # find which point is closest to the robot
+        if distP < distN:
+            para = pointP[0:2]
+        elif distP > distN:
+            para = pointN[0:2]
+        print("I crashed at wall",crashWall[0],"to",crashWall[1])
+        print(para)
+        if para is not None:
+            robotPos[0] = para[0]
+            robotPos[1] = para[1]
+
+##        roomTurtle.goto(pointP[0:2])
+##        roomTurtle.dot(10,"orange")
+##        roomTurtle.goto(pointN[0:2])
+##        roomTurtle.dot(10,"orange")
+##        time.sleep(1)
+        moveRobot(para)
+
+        # update heading and movement
+        robotPos[2] = random.randint(0,360)
+        print("new heading",robotPos[2])
+        movement = np.array([
+            velocity * np.cos(np.deg2rad(robotPos[2])),
+            velocity * np.sin(np.deg2rad(robotPos[2])),0])
+        print("New movement:", movement)
+    else: # it didn't find a wall in its way
+        moveRobot(target)
+    
+
+ #############################################################################################################################
+
+# nodes of the walls
+beacons = [
+    [0, 0],
+    [0, 100],
+    [100, 100],
+    [100, 0]
+]
+
+# from which node to which we draw walls
+# roomwalls are not neccesary, they are added automatically
+walls = [
+    [beacons[0], beacons[1]],
+    [beacons[1], beacons[2]],
+    [beacons[2], beacons[3]],
+    [beacons[3], beacons[0]]
+]
+
+ #############################################################################################################################
+
+createRoom()
+if visuals:
+    roomTurtle = turtle.Turtle(visible = False)
+    roomTurtle.speed(0)
+    createRobot()
+    drawWalls(roomTurtle)
+    drawBeacons(roomTurtle)
+
+else:
+    print("Beacons: ", beacons)
+    for i in range(len(walls)):
+        print("Wall ", i, ": from",walls[i][0],"to ", walls[i][1])
+    angle=input("Please enter the angle of movement: ")
+    robotPos = np.array([20, 20, int(angle)])      # this is the initial position of the robot (x, y, teta)
+    print("Initial position of the robot: ", robotPos)
+
+
+movement = np.array([
+    velocity * np.cos(np.deg2rad(robotPos[2])),       # x changes according to the cos(teta)
+    velocity * np.sin(np.deg2rad(robotPos[2])),       # y changes according to the sin(teta)
+    0                                # teta does not change
+])
+print("movement:",movement)
+
+for s in range(30):
+    targetPos = movement + robotPos
+    #roomTurtle.goto(targetPos[0:2])
+    #roomTurtle.dot(10,"black")
+    setNextPosition(targetPos[0:2])
+    velocity = 30
+    time.sleep(0.5)
