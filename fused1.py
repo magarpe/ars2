@@ -3,7 +3,7 @@ from numpy.linalg import inv
 import matplotlib.pyplot as plt
 import turtle, random, math
 
-noise = 0.1
+noise = 0.5
 
 tsize = 21
 shapelinesize = 2
@@ -12,30 +12,26 @@ robotSize = 25
 turtleHead = 0
 
 # gaussianNoise = 0.0001
-angleNoise = 0.4
+# angleNoise = 0.4
 m = 100
 t = 100
 
-kfr = np.diag((0.4, 0.4, 0.4))
+kfr = np.diag((noise, noise, noise))
 kfa = np.diag((1, 1, 1))
 kfc = np.diag((1, 1, 1))
 kfi = np.diag((1, 1, 1))
 kfb = np.diag((1, 1, 1))
 
 # process coveritance all digonals are 0.01
-kfp = np.diag((0.01, 0.01, 0.01))
-kfq = np.diag((0.1, 0.1, 0.1))
+kfp = np.diag((noise, noise, noise))
+kfq = np.diag((noise, noise, noise))
 
 delta_t = 0.1  # 1sec
 mean = 0
 
-noiserange = 20
-deviationx = 0.25
-deviationy = 0.25
-
-alpha1 = 0.25
-alpha2 = 0.25
-alpha3 = 0.25
+alpha1 = noise
+alpha2 = noise
+alpha3 = noise
 alpha4 = 0
 
 landmark_list = [(150, 150), (-150, 150), (-150, -150)]
@@ -84,16 +80,6 @@ def drawBeacons(drawTurtle):
 
 #############################################################################################################################
 
-
-def noisecloud(x, y):
-    noisex = np.random.normal(mean, deviationx, noiserange)
-    noisey = np.random.normal(mean, deviationy, noiserange)
-    for j in range(noiserange):
-        plt.plot(x + noisex[j], y + noisey[j], 'r+')
-    plt.plot(x, y)
-
-
-# simple is the equation what teacher use in slide
 def simple(b):
     sum = 0.0
     for j in range(12):
@@ -123,15 +109,16 @@ def odometry(u_pos, x_pos):
 
 #############################################################################################################################
 
+
 def getAngles(beacons):
-    global angleNoise, turtlePos
+    global noise, turtlePos
     angles = []
     for b in range(len(beacons)):
         angle = math.degrees(math.atan2(beacons[b][1] - turtlePos[1], beacons[b][0] - turtlePos[0]))
         if angle < 0:
             angle += 360
-        if angleNoise is not None:
-            angle += np.random.normal(0, angleNoise, 1)
+        if noise is not None:
+            angle += np.random.normal(0, noise, 1)
         angles.append(angle)
     return angles
 
@@ -145,15 +132,15 @@ def seglen(pt1, pt2):
 
 
 def vadd(vec1, vec2):
-    return (vec1[0] + vec2[0], vec1[1] + vec2[1])
+    return vec1[0] + vec2[0], vec1[1] + vec2[1]
 
 
 def vscale(scale, vec):
-    return (scale * vec[0], scale * vec[1])
+    return scale * vec[0], scale * vec[1]
 
 
 def psub(pt1, pt2):
-    return (pt1[0] - pt2[0], pt1[1] - pt2[1])
+    return pt1[0] - pt2[0], pt1[1] - pt2[1]
 
 
 def pcenter(pt1, pt2):
@@ -174,7 +161,7 @@ def cosine_rule_get_angle(a, b, c):
 
 def unitvec(vec):
     len_vec = vlen(vec)
-    return (vec[0] / len_vec, vec[1] / len_vec)
+    return vec[0] / len_vec, vec[1] / len_vec
 
 
 def vdot(vec1, vec2):
@@ -182,9 +169,9 @@ def vdot(vec1, vec2):
 
 
 def unit_normal(vec, facing_vec):
-    if (vec[0] == 0):  # ex. (0, 2)
+    if vec[0] == 0:  # ex. (0, 2)
         v_norm = (1, 0)
-    elif (vec[1] == 0):  # ex. (2, 0)
+    elif vec[1] == 0:  # ex. (2, 0)
         v_norm = (0, 1)
     else:
         v_temp = (-1 * vec[1], vec[0])
@@ -224,7 +211,7 @@ def properly_order_landmarks(landmark_list, angle_list):
     for order_index in range(0, len(landmark_order)):
         new_angle_list[order_index] = angle_list[landmark_order[order_index]] % 360.0
         new_landmark_list[order_index] = landmark_list[landmark_order[order_index]]
-    return (new_angle_list, new_landmark_list)
+    return new_angle_list, new_landmark_list
 
 
 def triangulation(landmark_list, eps):
@@ -235,7 +222,7 @@ def triangulation(landmark_list, eps):
     alpha = alpha * math.pi / 180
     beta = (angles[2] - angles[1]) % 360.0
     beta = beta * math.pi / 180
-    if (alpha == 0 and beta == 0):
+    if alpha == 0 and beta == 0:
         print("Significant measurement error (collinear).")
         return
     pt1 = landmarks[0]
@@ -248,13 +235,13 @@ def triangulation(landmark_list, eps):
     p12 = pcenter(pt1, pt2)  # pt1 + 0.5*v12
     p23 = pcenter(pt2, pt3)
 
-    if (alpha == 0):  # Robot collinear with 1 and 2
+    if alpha == 0:  # Robot collinear with 1 and 2
         alpha = eps
-    if (alpha == 180):  # Robot collinear with 1 and 2
+    if alpha == 180:  # Robot collinear with 1 and 2
         alpha = 180 - eps
-    if (beta == 0):  # Robot collinear with 2 and 3
+    if beta == 0:  # Robot collinear with 2 and 3
         beta = eps
-    if (beta == 180):  # Robot collinear with 2 and 3
+    if beta == 180:  # Robot collinear with 2 and 3
         beta = 180 - eps
 
     la = 0
@@ -296,6 +283,7 @@ def triangulation(landmark_list, eps):
 
 #############################################################################################################################
 
+
 def kfprediction(kfx, kfu, kfz):
     global kfp
     kfx = np.dot(kfa, kfx) + np.dot(kfb, kfu)
@@ -304,10 +292,11 @@ def kfprediction(kfx, kfu, kfz):
     pre_y = inv(np.dot(kfc, np.dot(kfp, np.transpose(kfc))) + kfq)
     kg = np.dot(np.dot(kfp, np.transpose(kfc)), pre_y)
     kfx = kfx + np.dot(kg, kfz - np.dot(kfc, kfx))
-    # print("c ", kfc, "\nxpos ",  kfx)
     kfp = np.dot((kfi - kg * kfc), kfp)
 
     return kfx
+
+#############################################################################################################################
 
 
 def main():
@@ -328,7 +317,6 @@ def main():
     realpos += pos
     print("real position: ", realpos)
     moveRobot(realrobot, u[0][0], u[2][0])
-    # plt.plot(pos[0, 0], pos[1, 0], 'mo')
 
     odo = odometry(u, pos)
     print("position from odometry: ", odo)
@@ -345,9 +333,7 @@ def main():
 
     moveRobot(shadowrobot, turn, distance)
 
-    # plt.axis([-50, 50, -50, 50])
-
-    # plt.show()
+    pos = newpos
 
 
 main()
