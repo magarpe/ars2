@@ -309,31 +309,35 @@ def main():
     realrobot = createRobot((pos[0][0], pos[1][0]), "silver")
     shadowrobot = createRobot((pos[0][0], pos[1][0]), "red")
 
-    u = np.array([[90], [0], [50]])
+    for i in range(0, 50):
+        u = np.array([[10], [0], [10]])
 
-    realpos = np.array([[u[2][0] * math.cos(math.radians(u[0][0]))],
-                        [u[2][0] * math.sin(math.radians(u[0][0]))],
-                        [0]])
-    realpos += pos
-    print("real position: ", realpos)
-    moveRobot(realrobot, u[0][0], u[2][0])
+        realpos = np.array([[u[2][0] * math.cos(math.radians(u[0][0]))],
+                            [u[2][0] * math.sin(math.radians(u[0][0]))],
+                            [0]])
+        realpos += pos
+        print("real position: ", realpos)
+        if i == 0:
+            moveRobot(realrobot, u[0][0], u[2][0])
+        else:
+            moveRobot(realrobot, 0, u[2][0])
 
-    odo = odometry(u, pos)
-    print("position from odometry: ", odo)
-    beam = triangulation(landmark_list, pos)
-    beam[2][0] = odo[2][0]
-    print("position for beams: ", beam)
+        odo = odometry(u, pos)
+        print("position from odometry: ", odo)
+        beam = triangulation(landmark_list, pos)
+        beam[2][0] = odo[2][0]
+        print("position for beams: ", beam)
 
-    newpos = kfprediction(pos, odo, beam)
+        newpos = kfprediction(pos, odo, beam)
 
-    print("position from kalman filter: ", newpos)
+        print("position from kalman filter: ", newpos)
 
-    turn = newpos[2][0] - pos[2][0]
-    distance = np.sqrt((pos[0][0] - newpos[0][0])**2 + (pos[1][0] - newpos[1][0])**2)
+        turn = newpos[2][0] - pos[2][0]
+        distance = np.sqrt((pos[0][0] - newpos[0][0])**2 + (pos[1][0] - newpos[1][0])**2)
 
-    moveRobot(shadowrobot, turn, distance)
+        moveRobot(shadowrobot, turn, distance)
 
-    pos = newpos
+        pos = newpos
 
 
 main()
